@@ -144,77 +144,96 @@ class _ScriptPageState extends ConsumerState<ScriptPage> with LazyLoadState<Scri
             ? const Center(
                 child: LoadingWidget(),
               )
-            : RefreshIndicator(
-                color: Theme.of(context).primaryColor,
-                onRefresh: () async {
-                  await loadData();
-                  return Future.value();
-                },
-                child: TreeView(
-                  controller: _treeViewController,
-                  onExpansionChanged: (key, state) {
-                    ScriptData? node = _treeViewController.getNode(key);
-                    if (node != null) {
-                      List<ScriptData> updated = _treeViewController.updateNode(key, node.copyWith(expanded: !node.expanded));
-                      setState(() {
-                        _treeViewController = _treeViewController.copyWith(children: updated);
-                      });
-                    }
-                  },
-                  onDeleteSelfClick: (ScriptData data) {
-                    showCupertinoDialog(
-                      useRootNavigator: false,
-                      context: context,
-                      builder: (context1) => CupertinoAlertDialog(
-                        title: const Text("确认删除"),
-                        content: const Text("确认删除吗"),
-                        actions: [
-                          CupertinoDialogAction(
-                            child: const Text(
-                              "取消",
-                              style: TextStyle(
-                                color: Color(0xff999999),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: Text(
-                              "确定",
-                              style: TextStyle(
-                                color: ref.watch(themeProvider).primaryColor,
-                              ),
-                            ),
-                            onPressed: () async {
-                              Navigator.of(context1).pop();
-                              deleteFold(data);
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  onNodeTap: (key) {
-                    ScriptData? selectedNode = _treeViewController.getNode(key);
-                    Navigator.of(context).pushNamed(
-                      Routes.routeScriptDetail,
-                      arguments: {
-                        "title": selectedNode?.title,
-                        "path": selectedNode?.parent,
+            : Column(
+                children: [
+                  searchCell(ref),
+                  Expanded(
+                    child: RefreshIndicator(
+                      color: Theme.of(context).primaryColor,
+                      onRefresh: () async {
+                        await loadData();
+                        return Future.value();
                       },
-                    ).then(
-                      (value) {
-                        if (value != null && value == true) {
-                          loadData();
-                        }
-                      },
-                    );
-                  },
-                ),
+                      child: isSearching
+                          ? buildSearchResult()
+                          : TreeView(
+                              controller: _treeViewController,
+                              onExpansionChanged: (key, state) {
+                                ScriptData? node = _treeViewController.getNode(key);
+                                if (node != null) {
+                                  List<ScriptData> updated = _treeViewController.updateNode(
+                                    key,
+                                    node.copyWith(expanded: !node.expanded),
+                                  );
+                                  setState(() {
+                                    _treeViewController = _treeViewController.copyWith(children: updated);
+                                  });
+                                }
+                              },
+                              onDeleteSelfClick: (ScriptData data) {
+                                showCupertinoDialog(
+                                  useRootNavigator: false,
+                                  context: context,
+                                  builder: (context1) => CupertinoAlertDialog(
+                                    title: const Text("确认删除"),
+                                    content: const Text("确认删除吗"),
+                                    actions: [
+                                      CupertinoDialogAction(
+                                        child: const Text(
+                                          "取消",
+                                          style: TextStyle(
+                                            color: Color(0xff999999),
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                      ),
+                                      CupertinoDialogAction(
+                                        child: Text(
+                                          "确定",
+                                          style: TextStyle(
+                                            color: ref.watch(themeProvider).primaryColor,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          Navigator.of(context1).pop();
+                                          deleteFold(data);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              onNodeTap: (key) {
+                                ScriptData? selectedNode = _treeViewController.getNode(key);
+                                openScript(selectedNode?.title, selectedNode?.parent);
+                              },
+                            ),
+                    ),
+                  ),
+                ],
               ),
       ),
+    );
+  }
+
+  void openScript(String? title, String? parent) {
+    FocusScope.of(context).requestFocus(FocusNode());
+    Navigator.of(context)
+        .pushNamed(
+      Routes.routeScriptDetail,
+      arguments: {
+        "title": title,
+        "path": parent,
+      },
+    )
+        .then(
+      (value) {
+        if (value != null && value == true) {
+          loadData();
+        }
+      },
     );
   }
 
@@ -229,6 +248,209 @@ class _ScriptPageState extends ConsumerState<ScriptPage> with LazyLoadState<Scri
         controller: searchText,
       ),
     );
+  }
+
+  String get keyword => searchText.text.trim();
+
+  bool get isSearching => keyword.isNotEmpty;
+
+  /// 递归摊平脚本树，得到全部文件节点
+  List<ScriptData> getAllFiles() {
+    List<ScriptData> files = [];
+    void walk(List<ScriptData> nodes) {
+      for (ScriptData node in nodes) {
+        if (node.isParent) {
+          walk(node.children);
+        } else if (node.title.isNotEmpty) {
+          files.add(node);
+        }
+      }
+    }
+
+    walk(list);
+    return files;
+  }
+
+  List<ScriptData> get searchResultList {
+    String kw = keyword.toLowerCase();
+    List<ScriptData> result = getAllFiles().where((element) {
+      return element.title.toLowerCase().contains(kw) || element.parent.toLowerCase().contains(kw);
+    }).toList();
+    // 文件名完全匹配 / 前缀匹配的排前面
+    result.sort((a, b) {
+      int scoreA = _matchScore(a, kw);
+      int scoreB = _matchScore(b, kw);
+      if (scoreA != scoreB) return scoreB.compareTo(scoreA);
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+    return result;
+  }
+
+  int _matchScore(ScriptData data, String kw) {
+    String title = data.title.toLowerCase();
+    if (title == kw) return 3;
+    if (title.startsWith(kw)) return 2;
+    if (title.contains(kw)) return 1;
+    return 0;
+  }
+
+  Widget buildSearchResult() {
+    List<ScriptData> result = searchResultList;
+    if (result.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: 120,
+          ),
+          Center(
+            child: Text(
+              "没有找到包含「$keyword」的脚本",
+              style: TextStyle(
+                fontSize: 14,
+                color: ref.watch(themeProvider).themeColor.descColor(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        bottom: 20,
+      ),
+      itemCount: result.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Container(
+            padding: const EdgeInsets.fromLTRB(15, 10, 15, 6),
+            child: Text(
+              "找到 ${result.length} 个脚本",
+              style: TextStyle(
+                fontSize: 12,
+                color: ref.watch(themeProvider).themeColor.descColor(),
+              ),
+            ),
+          );
+        }
+        return searchResultCell(result[index - 1]);
+      },
+    );
+  }
+
+  Widget searchResultCell(ScriptData data) {
+    ThemeColors themeColor = ref.watch(themeProvider).themeColor;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        openScript(data.title, data.parent);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 12,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: themeColor.settingBordorColor(),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              CupertinoIcons.doc_text,
+              size: 20,
+              color: themeColor.descColor(),
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    buildHighlightText(
+                      data.title,
+                      keyword,
+                      themeColor.titleColor(),
+                      ref.watch(themeProvider).primaryColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(
+                    height: 3,
+                  ),
+                  Text.rich(
+                    buildHighlightText(
+                      (data.parent.isEmpty || data.parent == "/") ? "根目录" : "/${data.parent}",
+                      keyword,
+                      themeColor.descColor(),
+                      ref.watch(themeProvider).primaryColor,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_forward,
+              size: 16,
+              color: themeColor.descColor(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 把命中的关键字标红高亮
+  TextSpan buildHighlightText(
+    String text,
+    String kw,
+    Color normalColor,
+    Color highlightColor, {
+    double fontSize = 16,
+  }) {
+    TextStyle normal = TextStyle(
+      fontSize: fontSize,
+      color: normalColor,
+    );
+    if (kw.isEmpty) {
+      return TextSpan(text: text, style: normal);
+    }
+    TextStyle highlight = TextStyle(
+      fontSize: fontSize,
+      color: highlightColor,
+      fontWeight: FontWeight.w600,
+    );
+    String lowerText = text.toLowerCase();
+    String lowerKw = kw.toLowerCase();
+    List<TextSpan> spans = [];
+    int start = 0;
+    while (start < text.length) {
+      int index = lowerText.indexOf(lowerKw, start);
+      if (index < 0) {
+        spans.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index)));
+      }
+      spans.add(TextSpan(
+        text: text.substring(index, index + kw.length),
+        style: highlight,
+      ));
+      start = index + kw.length;
+    }
+    return TextSpan(style: normal, children: spans);
   }
 
   Future<void> loadData() async {
