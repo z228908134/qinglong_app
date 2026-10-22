@@ -3,6 +3,7 @@ import 'package:custom_sliding_segmented_control/custom_sliding_segmented_contro
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:qinglong_app/base/base_state_widget.dart';
@@ -590,6 +591,20 @@ class TaskPageState extends ConsumerState<TaskPage>
                         },
                       ),
                       EditModeButton(
+                        "加标签",
+                        icon: CupertinoIcons.tag,
+                        onTap: () {
+                          _showLabelsDialog(context, true);
+                        },
+                      ),
+                      EditModeButton(
+                        "删标签",
+                        icon: CupertinoIcons.tag_slash,
+                        onTap: () {
+                          _showLabelsDialog(context, false);
+                        },
+                      ),
+                      EditModeButton(
                         "删除",
                         icon: CupertinoIcons.delete,
                         onTap: () {
@@ -681,6 +696,112 @@ class TaskPageState extends ConsumerState<TaskPage>
     ref
         .read(SingleAccountPageState.ofTaskProvider(context)(getProviderName(context)).notifier)
         .runCrons(context, checkedIds.toList());
+  }
+
+  /// 批量加/删标签（青龙 2.x 新增 /api/crons/labels 接口）
+  void _showLabelsDialog(BuildContext context, bool add) {
+    if (checkedIds.isEmpty) {
+      "至少选择1个任务".toast();
+      return;
+    }
+    TextEditingController controller = TextEditingController();
+    showCupertinoDialog(
+      context: context,
+      useRootNavigator: false,
+      builder: (context1) => CupertinoAlertDialog(
+        title: Text(add ? "添加标签" : "移除标签"),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: Text(
+                "多个标签用英文逗号分隔",
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: TextField(
+                textAlign: TextAlign.center,
+                controller: controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: "标签1,标签2",
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text(
+              "取消",
+              style: TextStyle(
+                color: Color(0xff999999),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context1).pop();
+            },
+          ),
+          CupertinoDialogAction(
+            child: Text(
+              "确定",
+              style: TextStyle(
+                color: ref.watch(themeProvider).primaryColor,
+              ),
+            ),
+            onPressed: () async {
+              Navigator.of(context1).pop();
+              String input = controller.text.trim();
+              if (input.isEmpty) {
+                "请输入标签".toast();
+                return;
+              }
+              List<String> labels =
+                  input.split(",").map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+              if (labels.isEmpty) {
+                "请输入标签".toast();
+                return;
+              }
+              var model = ref
+                  .read(SingleAccountPageState.ofTaskProvider(context)(getProviderName(context))
+                      .notifier);
+              List<int> ids = [];
+              for (var id in checkedIds) {
+                for (var bean in model.list) {
+                  if (bean.sId == id && bean.id != null) {
+                    ids.add(bean.id!);
+                    break;
+                  }
+                }
+              }
+              if (ids.isEmpty) {
+                "未找到可操作的任务".toast();
+                return;
+              }
+              EasyLoading.show(status: "提交中");
+              var response = add
+                  ? await SingleAccountPageState.ofApi(context).addTaskLabels(ids, labels)
+                  : await SingleAccountPageState.ofApi(context).removeTaskLabels(ids, labels);
+              EasyLoading.dismiss();
+              if (response.success) {
+                add ? "标签已添加".toast() : "标签已移除".toast();
+                editMode = false;
+                removeOverlay();
+                checkedIds.clear();
+                setState(() {});
+                model.loadData(context, false);
+              } else {
+                (response.message ?? "操作失败").toast();
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void deleteTasks() {
@@ -882,7 +1003,8 @@ class _ListBodyState extends ConsumerState<ListBodyWidget> with AutomaticKeepAli
         if (widget.searchText.isEmpty ||
             (item.name?.toLowerCase().contains(widget.searchText.toLowerCase()) ?? false) ||
             (item.command?.toLowerCase().contains(widget.searchText.toLowerCase()) ?? false) ||
-            (item.schedule?.contains(widget.searchText.toLowerCase()) ?? false)) {
+            (item.schedule?.contains(widget.searchText.toLowerCase()) ?? false) ||
+            (item.labels?.any((e) => e.toLowerCase().contains(widget.searchText.toLowerCase())) ?? false)) {
           return TaskItemCell(
             item,
             ref,
@@ -902,7 +1024,8 @@ class _ListBodyState extends ConsumerState<ListBodyWidget> with AutomaticKeepAli
         if (widget.searchText.isEmpty ||
             (item.name?.toLowerCase().contains(widget.searchText.toLowerCase()) ?? false) ||
             (item.command?.toLowerCase().contains(widget.searchText.toLowerCase()) ?? false) ||
-            (item.schedule?.contains(widget.searchText.toLowerCase()) ?? false)) {
+            (item.schedule?.contains(widget.searchText.toLowerCase()) ?? false) ||
+            (item.labels?.any((e) => e.toLowerCase().contains(widget.searchText.toLowerCase())) ?? false)) {
           return Container(
             color: item.isPinned == 1
                 ? ref.watch(themeProvider).themeColor.pinColor()
@@ -1168,6 +1291,39 @@ class TaskItemCell extends StatelessWidget {
                           ),
                         ),
                       ),
+                      ((bean.labels?.isNotEmpty) ?? false)
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: (bean.labels ?? [])
+                                    .map(
+                                      (label) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: ref
+                                              .watch(themeProvider)
+                                              .primaryColor
+                                              .withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          label,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: ref.watch(themeProvider).primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ],
                   ),
                 ),

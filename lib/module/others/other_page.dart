@@ -24,12 +24,15 @@ import 'package:path/path.dart' as ints;
 
 import '../../main.dart';
 import '../appkey/appkey_page.dart';
+import '../dashboard/dashboard_page.dart';
 import '../home/system_bean.dart';
 import '../poet_page.dart';
 import '../push_setting_page.dart';
 import '../scan_page.dart';
 import '../task/task_page.dart';
 import '../update_max_account_page.dart';
+import 'data_backup_page.dart';
+import 'system_config_page.dart';
 
 class OtherPage extends ConsumerStatefulWidget {
   const OtherPage({Key? key}) : super(key: key);
@@ -786,6 +789,46 @@ class OtherPageState extends ConsumerState<OtherPage>
                                 );
                               },
                             ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: buildOtherFun2(
+                              "运行概览",
+                              CupertinoIcons.chart_bar_alt_fill,
+                              () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                    builder: (context) => const DashboardPage()));
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: buildOtherFun2(
+                              "面板配置",
+                              CupertinoIcons.slider_horizontal_3,
+                              () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                    builder: (context) => const SystemConfigPage()));
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: buildOtherFun2(
+                              "数据备份",
+                              CupertinoIcons.archivebox_fill,
+                              () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                    builder: (context) => const DataBackupPage()));
+                              },
+                            ),
+                          ),
+                          const Expanded(
+                            child: SizedBox.shrink(),
                           ),
                         ],
                       ),

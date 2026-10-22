@@ -126,6 +126,84 @@ class Url {
     return getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined ? "/open/envs/$envId/move" : "/api/envs/$envId/move";
   }
 
+  // ==================== 青龙 2.x 新增接口 ====================
+
+  // 仪表盘
+  get dashboardOverview =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/dashboard/overview"
+          : "/api/dashboard/overview";
+
+  get dashboardSystem =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/dashboard/system"
+          : "/api/dashboard/system";
+
+  // 任务标签（POST 添加 / DELETE 移除）
+  get taskLabels =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/crons/labels"
+          : "/api/crons/labels";
+
+  // 脚本历史版本
+  get scriptHistory =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/scripts/history"
+          : "/api/scripts/history";
+
+  get scriptHistoryDetail =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/scripts/history/detail"
+          : "/api/scripts/history/detail";
+
+  get restoreScriptHistory =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/scripts/history/restore"
+          : "/api/scripts/history/restore";
+
+  // 系统配置
+  get systemConfig =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/config"
+          : "/api/system/config";
+
+  get panelTitleConfig =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/config/panel-title"
+          : "/api/system/config/panel-title";
+
+  get timezoneConfig =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/config/timezone"
+          : "/api/system/config/timezone";
+
+  get cronConcurrencyConfig =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/config/cron-concurrency"
+          : "/api/system/config/cron-concurrency";
+
+  // 通知测试 / 通知日志
+  get testNotify =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/notify"
+          : "/api/system/notify";
+
+  get notifyLog =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/notify-log"
+          : "/api/system/notify-log";
+
+  // 数据备份 导出 / 导入
+  get dataExport =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/data/export"
+          : "/api/system/data/export";
+
+  get dataImport =>
+      getIt<UserInfoViewModel>(instanceName: index.toString()).useSecretLogined
+          ? "/open/system/data/import"
+          : "/api/system/data/import";
+
   static bool inWhiteList(String path) {
     if (path == login || path == loginByClientId || path == loginTwo || path == loginOld) {
       return true;

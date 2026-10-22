@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:qinglong_app/base/http/http.dart';
 import 'package:qinglong_app/base/http/url.dart';
 import 'package:qinglong_app/main.dart';
@@ -620,6 +621,145 @@ class Api {
     return await getIt<Http>(instanceName: index.toString()).put<NullResponse>(
       getIt<Url>(instanceName: index.toString()).resetAppKey(id),
       {},
+    );
+  }
+
+  // ==================== 青龙 2.x 新增接口 ====================
+
+  /// 运行概览：任务总数 / 启用 / 禁用 / 今日运行统计
+  Future<HttpResponse<String>> dashboardOverview() async {
+    return await getIt<Http>(instanceName: index.toString()).get<String>(
+      getIt<Url>(instanceName: index.toString()).dashboardOverview,
+      {},
+    );
+  }
+
+  /// 面板系统信息：内存 / CPU / 运行时长
+  Future<HttpResponse<String>> dashboardSystem() async {
+    return await getIt<Http>(instanceName: index.toString()).get<String>(
+      getIt<Url>(instanceName: index.toString()).dashboardSystem,
+      {},
+    );
+  }
+
+  /// 批量添加任务标签
+  Future<HttpResponse<NullResponse>> addTaskLabels(List<int> ids, List<String> labels) async {
+    return await getIt<Http>(instanceName: index.toString()).post<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).taskLabels,
+      {"ids": ids, "labels": labels},
+    );
+  }
+
+  /// 批量移除任务标签
+  Future<HttpResponse<NullResponse>> removeTaskLabels(List<int> ids, List<String> labels) async {
+    return await getIt<Http>(instanceName: index.toString()).delete<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).taskLabels,
+      {"ids": ids, "labels": labels},
+    );
+  }
+
+  /// 脚本历史版本列表（versions + currentHash）
+  Future<HttpResponse<String>> scriptHistory(String filename, String? path) async {
+    return await getIt<Http>(instanceName: index.toString()).get<String>(
+      getIt<Url>(instanceName: index.toString()).scriptHistory,
+      {
+        "filename": filename,
+        "path": path ?? "",
+      },
+    );
+  }
+
+  /// 历史版本内容详情
+  Future<HttpResponse<String>> scriptHistoryDetail(String filename, String? path, String id) async {
+    return await getIt<Http>(instanceName: index.toString()).get<String>(
+      getIt<Url>(instanceName: index.toString()).scriptHistoryDetail,
+      {
+        "filename": filename,
+        "path": path ?? "",
+        "id": id,
+      },
+    );
+  }
+
+  /// 恢复历史版本（expectedHash 为当前文件 hash，用于乐观锁校验）
+  Future<HttpResponse<NullResponse>> restoreScriptHistory(
+    String filename,
+    String? path,
+    String id,
+    String expectedHash,
+  ) async {
+    return await getIt<Http>(instanceName: index.toString()).post<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).restoreScriptHistory,
+      {
+        "filename": filename,
+        "path": path ?? "",
+        "id": id,
+        "expectedHash": expectedHash,
+      },
+    );
+  }
+
+  /// 系统配置（面板标题 / 时区 / 并发数等）
+  Future<HttpResponse<String>> systemConfig() async {
+    return await getIt<Http>(instanceName: index.toString()).get<String>(
+      getIt<Url>(instanceName: index.toString()).systemConfig,
+      {},
+    );
+  }
+
+  Future<HttpResponse<NullResponse>> updatePanelTitle(String panelTitle) async {
+    return await getIt<Http>(instanceName: index.toString()).put<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).panelTitleConfig,
+      {"panelTitle": panelTitle},
+    );
+  }
+
+  Future<HttpResponse<NullResponse>> updateTimezone(String timezone) async {
+    return await getIt<Http>(instanceName: index.toString()).put<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).timezoneConfig,
+      {"timezone": timezone},
+    );
+  }
+
+  Future<HttpResponse<NullResponse>> updateCronConcurrency(int cronConcurrency) async {
+    return await getIt<Http>(instanceName: index.toString()).put<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).cronConcurrencyConfig,
+      {"cronConcurrency": cronConcurrency},
+    );
+  }
+
+  /// 测试通知（PUT /system/notify）
+  Future<HttpResponse<NullResponse>> testNotify(String title, String content) async {
+    return await getIt<Http>(instanceName: index.toString()).put<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).testNotify,
+      {"title": title, "content": content},
+    );
+  }
+
+  /// 通知日志列表
+  Future<HttpResponse<String>> notifyLog() async {
+    return await getIt<Http>(instanceName: index.toString()).get<String>(
+      getIt<Url>(instanceName: index.toString()).notifyLog,
+      {},
+    );
+  }
+
+  /// 数据备份导出（返回 zip 字节流），失败返回 null
+  Future<dynamic> exportData() async {
+    return await getIt<Http>(instanceName: index.toString()).putRaw(
+      getIt<Url>(instanceName: index.toString()).dataExport,
+      {},
+    );
+  }
+
+  /// 数据备份导入（multipart 上传 zip 文件）
+  Future<HttpResponse<NullResponse>> importData(String filePath) async {
+    FormData formData = FormData.fromMap({
+      "data": await MultipartFile.fromFile(filePath),
+    });
+    return await getIt<Http>(instanceName: index.toString()).putForm<NullResponse>(
+      getIt<Url>(instanceName: index.toString()).dataImport,
+      formData,
     );
   }
 }

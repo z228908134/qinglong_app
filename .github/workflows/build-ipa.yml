@@ -1,0 +1,63 @@
+name: Build iOS IPA (unsigned)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Pick Xcode 15.x if available
+        run: |
+          ls /Applications | grep Xcode || true
+          for v in 15.2 15.1 15.0 15.4 15.3; do
+            if [ -d "/Applications/Xcode_${v}.app" ]; then
+              sudo xcode-select -s "/Applications/Xcode_${v}.app"
+              break
+            fi
+          done
+          xcodebuild -version
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.3.10'
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS (unsigned)
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign 2>&1 | tee build.log | tail -30
+          grep -q "Built .*Runner.app" build.log
+
+      - name: Package IPA
+        run: |
+          APP=$(find build/ios -name "Runner.app" -path "*iphoneos*" | head -1)
+          echo "APP=$APP"
+          test -n "$APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry qinglong_app.ipa Payload
+          unzip -l qinglong_app.ipa | head -20
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: qinglong-app-unsigned-ipa
+          path: qinglong_app.ipa
+          if-no-files-found: error
+
+      - name: Dump build log on failure
+        if: failure()
+        run: tail -150 build.log 2>/dev/null || true

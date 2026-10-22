@@ -25,6 +25,7 @@ class TaskBean {
   String? pid;
   String? updatedAt;
   String? createdAt;
+  List<String>? labels;
 
   TaskBean(
       {this.name,
@@ -68,6 +69,7 @@ class TaskBean {
       lastExecutionTime = int.tryParse(json['last_execution_time'].toString());
       lastRunningTime = json['last_running_time'];
       pid = json['pid'].toString();
+      labels = (json['labels'] as List?)?.map((e) => e.toString()).toList();
     } catch (e) {
       logger.e(e);
     }
@@ -92,6 +94,7 @@ class TaskBean {
     data['last_execution_time'] = this.lastExecutionTime;
     data['last_running_time'] = this.lastRunningTime;
     data['pid'] = this.pid;
+    data['labels'] = this.labels;
     return data;
   }
 

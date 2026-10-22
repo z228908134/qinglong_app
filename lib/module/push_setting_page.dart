@@ -9,6 +9,7 @@ import 'package:qinglong_app/base/single_account_page.dart';
 import 'package:qinglong_app/base/theme.dart';
 import 'package:qinglong_app/base/ui/lazy_load_state.dart';
 import 'package:qinglong_app/base/ui/loading_widget.dart';
+import 'package:qinglong_app/module/others/notify_log_page.dart';
 import 'package:qinglong_app/module/subscribe/add_subscribe_page.dart';
 import 'package:qinglong_app/utils/extension.dart';
 
@@ -40,6 +41,48 @@ class _PushSettingPageState extends ConsumerState<PushSettingPage> {
       appBar: QlAppBar(
         title: "通知设置",
         actions: [
+          CupertinoButton(
+            color: Colors.transparent,
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              Navigator.of(context).push(
+                CupertinoPageRoute(
+                  builder: (context) => const NotifyLogPage(),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(
+                child: Text(
+                  "日志",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).appBarTheme.iconTheme?.color,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          CupertinoButton(
+            color: Colors.transparent,
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              _showTestNotifyDialog();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Center(
+                child: Text(
+                  "测试",
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).appBarTheme.iconTheme?.color,
+                  ),
+                ),
+              ),
+            ),
+          ),
           CommitButton(
             onTap: () {
               commit();
@@ -356,6 +399,65 @@ class _PushSettingPageState extends ConsumerState<PushSettingPage> {
         loading = false;
       });
     }
+  }
+
+  /// 测试通知（青龙 2.x PUT /api/system/notify）
+  void _showTestNotifyDialog() {
+    TextEditingController titleController = TextEditingController(text: "青龙面板测试通知");
+    TextEditingController contentController =
+        TextEditingController(text: "这是一条来自青龙客户端的测试通知");
+    showCupertinoDialog(
+      context: context,
+      useRootNavigator: false,
+      builder: (context1) => CupertinoAlertDialog(
+        title: const Text("测试通知"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: TextField(
+                textAlign: TextAlign.center,
+                controller: titleController,
+                decoration: const InputDecoration(hintText: "标题"),
+              ),
+            ),
+            TextField(
+              textAlign: TextAlign.center,
+              controller: contentController,
+              decoration: const InputDecoration(hintText: "内容"),
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text(
+              "取消",
+              style: TextStyle(color: Color(0xff999999)),
+            ),
+            onPressed: () => Navigator.of(context1).pop(),
+          ),
+          CupertinoDialogAction(
+            child: Text(
+              "发送",
+              style: TextStyle(color: Theme.of(context).primaryColor),
+            ),
+            onPressed: () async {
+              Navigator.of(context1).pop();
+              EasyLoading.show(status: "发送中");
+              var res = await SingleAccountPageState.ofApi(context)
+                  .testNotify(titleController.text, contentController.text);
+              EasyLoading.dismiss();
+              if (res.success) {
+                "发送成功，请查收".toast();
+              } else {
+                (res.message ?? "发送失败").toast();
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void commit() async {

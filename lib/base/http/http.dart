@@ -140,6 +140,39 @@ class Http {
     }
   }
 
+  /// 原始请求：用于导出二进制数据（如数据备份 zip），返回原始 Response（bytes）
+  Future<Response<dynamic>?> putRaw(
+    String uri,
+    dynamic json,
+  ) async {
+    try {
+      _init();
+      var response = await _dio!.put(
+        uri,
+        data: json,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response;
+    } on DioError catch (e) {
+      logger.e(e);
+      return null;
+    }
+  }
+
+  /// multipart 上传：用于数据备份导入（file 字段）
+  Future<HttpResponse<T>> putForm<T>(
+    String uri,
+    FormData data,
+  ) async {
+    try {
+      _init();
+      var response = await _dio!.put(uri, data: data);
+      return decodeResponse<T>(response, "data", false);
+    } on DioError catch (e) {
+      return exceptionHandler<T>(e, uri);
+    }
+  }
+
   void exitLogin() {
     if (!pushedLoginPage) {
       "身份已过期,请重新登录".toast();
