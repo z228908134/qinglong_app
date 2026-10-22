@@ -599,7 +599,7 @@ class TaskPageState extends ConsumerState<TaskPage>
                       ),
                       EditModeButton(
                         "删标签",
-                        icon: CupertinoIcons.tag_slash,
+                        icon: CupertinoIcons.tag_fill,
                         onTap: () {
                           _showLabelsDialog(context, false);
                         },
